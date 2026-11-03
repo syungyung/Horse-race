@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>500 m Dash</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Nunito:wght@500;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root{
+  --bg:#E9F0E6; --ink:#122318; --muted:#4B6353; --panel:#FFFFFF; --line:#C5D5C7;
+  --turf:#2F7D46; --turf2:#29703E; --rail:#FFFFFF; --gold:#F2B705; --red:#C8102E; --redDark:#9C0C23;
+  --shadow:0 2px 0 rgba(18,35,24,.18); color-scheme:light;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#0E1912; --ink:#E6EFE8; --muted:#9BB2A3; --panel:#16241B; --line:#2A3E31; --shadow:0 2px 0 rgba(0,0,0,.5); color-scheme:dark;}
+}
+html,body{height:100%;margin:0}
+*,*::before,*::after{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:Nunito,"Segoe UI",system-ui,-apple-system,sans-serif;display:flex;flex-direction:column;overflow:hidden;-webkit-tap-highlight-color:transparent}
+h1,h2,.slab{font-family:"Alfa Slab One",Rockwell,"Roboto Slab",Georgia,serif;font-weight:400;letter-spacing:.01em}
+button{font:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+header{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel)}
+header h1{margin:0;font-size:1.35rem;line-height:1}
+header h1 span{color:var(--red)}
+#status{margin-left:auto;font-weight:800;color:var(--muted);font-size:.95rem;text-align:right}
+#main{flex:1;min-height:0;display:flex;gap:12px;padding:12px;overflow:hidden}
+#trackWrap{flex:1;min-width:0;overflow-y:auto}
+#joinPanel{width:230px;flex:none;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;text-align:center;display:none;overflow-y:auto}
+#joinPanel.show{display:block}
+#joinPanel .code{font-family:"Alfa Slab One",Georgia,serif;font-size:2rem;letter-spacing:.12em;margin:4px 0 10px}
+#qr{background:#fff;padding:10px;border-radius:10px;display:inline-block}
+#qr img,#qr canvas{display:block;width:180px;height:180px}
+#joinPanel p{margin:8px 0 0;color:var(--muted);font-weight:700;font-size:.85rem;word-break:break-all}
+@media (max-width:700px){#main{flex-direction:column}#joinPanel{width:auto}#qr img,#qr canvas{width:140px;height:140px}}
+.track{position:relative;border-radius:14px;overflow:hidden;background:repeating-linear-gradient(90deg,var(--turf) 0 10%,var(--turf2) 10% 20%);border:4px solid var(--rail);box-shadow:var(--shadow);--rw:44px;padding-top:22px}
+.marks{position:absolute;inset:0;pointer-events:none}
+.mark{position:absolute;top:0;bottom:0;border-left:2px dashed rgba(255,255,255,.35)}
+.mark b{position:absolute;top:3px;left:4px;font-size:.7rem;color:#fff;opacity:.85;font-weight:800;white-space:nowrap}
+.finish{position:absolute;top:0;bottom:0;right:0;width:10px;background:conic-gradient(#fff 0 25%,#111 0 50%,#fff 0 75%,#111 0) 0 0/10px 10px}
+.lane{position:relative;height:66px;border-top:2px solid rgba(255,255,255,.55);margin-right:10px}
+.runner{position:absolute;bottom:4px;left:calc((100% - var(--rw)) * var(--p,0));width:var(--rw);transition:left .18s linear;display:flex;flex-direction:column;align-items:center}
+.runner.off{opacity:.45}
+.horse{font-size:32px;line-height:1;transform:scaleX(-1);filter:drop-shadow(0 2px 0 rgba(0,0,0,.25))}
+.runner.go .horse{animation:gallop .28s steps(2) infinite}
+@keyframes gallop{50%{transform:scaleX(-1) translateY(-3px) rotate(-4deg)}}
+.bubble{position:absolute;bottom:38px;left:50%;transform:translateX(-50%);background:#fff;color:#122318;font-weight:800;font-size:.78rem;line-height:1.1;padding:3px 9px;border-radius:999px;white-space:nowrap;max-width:150px;overflow:hidden;text-overflow:ellipsis;border:2px solid var(--c);box-shadow:0 2px 0 rgba(0,0,0,.2)}
+.bubble::after{content:"";position:absolute;left:50%;bottom:-7px;width:8px;height:8px;margin-left:-4px;background:#fff;border-right:2px solid var(--c);border-bottom:2px solid var(--c);transform:rotate(45deg)}
+.runner.me .bubble,.runner.me .bubble::after{background:var(--gold)}
+.place{position:absolute;bottom:2px;right:-30px;background:var(--gold);color:#122318;font-weight:900;font-size:.72rem;border-radius:6px;padding:1px 5px;display:none}
+.place.show{display:block}
+.empty{color:#fff;text-align:center;padding:42px 16px;font-weight:800}
+.empty small{display:block;font-weight:600;opacity:.85;margin-top:6px}
+#controls{border-top:1px solid var(--line);background:var(--panel);padding:12px 16px}
+.tap{width:100%;height:min(34vh,220px);border:0;border-radius:22px;background:var(--red);color:#fff;box-shadow:0 8px 0 var(--redDark);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;touch-action:manipulation;user-select:none;-webkit-user-select:none;transition:transform .05s,box-shadow .05s}
+.tap .slab{font-size:2.6rem;line-height:1}
+.tap .sub{font-weight:800;opacity:.9}
+.tap.pressed{transform:translateY(6px);box-shadow:0 2px 0 var(--redDark)}
+.tap[aria-disabled="true"]{background:#7d8b82;box-shadow:0 8px 0 #5c665f}
+.meter{height:10px;border-radius:5px;background:var(--line);margin:0 0 12px;overflow:hidden}
+.meter i{display:block;height:100%;width:0;background:var(--gold);transition:width .15s linear}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.btn{border:0;border-radius:12px;padding:12px 18px;font-weight:900;background:var(--red);color:#fff;box-shadow:0 4px 0 var(--redDark)}
+.btn.alt{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 2px var(--line)}
+.btn:disabled{opacity:.45;cursor:default}
+.hostInfo{font-weight:800;color:var(--muted)}
+.podiumMini{display:flex;gap:8px;margin-left:auto;flex-wrap:wrap}
+.podiumMini span{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:4px 8px;font-weight:800;font-size:.85rem}
+.overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:20px;z-index:20}
+.overlay.show{display:flex}
+#home{background:var(--bg)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:26px 22px;width:min(420px,100%);box-shadow:var(--shadow);text-align:center}
+.card h2{margin:6px 0 4px;font-size:2rem}
+.card p{color:var(--muted);margin:0 0 18px;line-height:1.45}
+.bigHorse{font-size:56px;display:inline-block;transform:scaleX(-1)}
+.card input{width:100%;font:inherit;font-weight:800;font-size:1.2rem;padding:14px;border-radius:12px;border:2px solid var(--line);background:var(--bg);color:var(--ink);text-align:center;margin-bottom:12px}
+#codeIn{text-transform:uppercase;letter-spacing:.15em}
+.card .btn{width:100%;font-size:1.1rem}
+.divider{margin:18px 0 12px;color:var(--muted);font-weight:700;font-size:.9rem}
+.err{color:var(--red);font-weight:800;min-height:1.2em;margin:10px 0 0}
+#count{background:rgba(10,30,18,.55);pointer-events:none}
+#count .slab{font-size:min(40vw,220px);color:#fff;text-shadow:0 8px 0 rgba(0,0,0,.3)}
+#podium{background:rgba(10,30,18,.7)}
+.podium{display:flex;align-items:flex-end;justify-content:center;gap:10px;margin:18px 0}
+.step{flex:1;max-width:120px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.step .who{font-weight:900;word-break:break-word;font-size:.95rem}
+.step .block{width:100%;border-radius:10px 10px 0 0;display:flex;align-items:flex-start;justify-content:center;padding-top:8px}
+.step.p1 .block{height:110px;background:var(--gold)}
+.step.p2 .block{height:80px;background:#C9D1D6}
+.step.p3 .block{height:60px;background:#D9A06B}
+.step .medal{font-size:30px}
+@media (prefers-reduced-motion:reduce){.runner,.meter i{transition:none}.runner.go .horse{animation:none}}
+</style>
+</head>
+<body>
+<header><h1>500<span>m</span> Dash</h1><div id="status"></div></header>
+<div id="main">
+  <div id="trackWrap"><div class="track" id="track"></div></div>
+  <aside id="joinPanel">
+    <div class="hostInfo">Scan to join</div>
+    <div id="qr"></div>
+    <div class="hostInfo" style="margin-top:10px">or enter code</div>
+    <div class="code" id="codeShow"></div>
+    <p id="linkShow"></p>
+  </aside>
+</div>
+<div id="controls" style="display:none"></div>
+
+<div class="overlay show" id="home">
+  <div class="card">
+    <div class="bigHorse" aria-hidden="true">🏇</div>
+    <h2>500 m Dash</h2>
+    <div id="joinForm">
+      <p>Pick a name for your horse, then tap as fast as you can when the race starts.</p>
+      <input id="codeIn" maxlength="5" placeholder="Race code" autocomplete="off">
+      <input id="nameIn" maxlength="16" placeholder="Your name" autocomplete="off" enterkeyhint="go">
+      <button class="btn" id="joinBtn">Join the race</button>
+    </div>
+    <div id="hostForm">
+      <div class="divider">Running the race on a big screen?</div>
+      <button class="btn alt" id="hostBtn">Host a race on this screen</button>
+    </div>
+    <div class="err" id="homeErr" role="alert"></div>
+  </div>
+</div>
+<div class="overlay" id="count"><div class="slab" id="countNum">3</div></div>
+<div class="overlay" id="podium">
+  <div class="card">
+    <h2>Winners</h2>
+    <div class="podium" id="podiumSteps"></div>
+    <p id="podiumNote"></p>
+    <div id="podiumActions"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+const TRACK = 500, STEP = 5, PREFIX = 'dash500m-js-';
+const COLORS = ['#C8102E','#1D4ED8','#F2B705','#7B2CBF','#F97316','#0891B2','#DB2777','#334155','#65A30D','#92400E','#0F766E','#BE185D'];
+const ORD = ['1st','2nd','3rd'];
+const $ = s => document.querySelector(s);
+const clean = s => String(s == null ? '' : s).replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]/g,'').trim().slice(0,16);
+const newCode = () => { const a = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s=''; for (let i=0;i<5;i++) s += a[Math.floor(Math.random()*a.length)]; return s; };
+const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+
+let mode = 'home';          // home | host | player
+let state = null;           // what everyone renders: {phase, raceId, players:[{id,name,dist,c,on}], results:[{id,name}]}
+let myId = null, myName = '';
+let peer = null, hostConn = null, code = '';
+let lastPhase = null, lastRace = null, countTimers = [], podiumDismissedFor = null;
+
+try { myId = sessionStorage.getItem('dash-id'); } catch(e){}
+if (!myId){ myId = newId(); try { sessionStorage.setItem('dash-id', myId); } catch(e){} }
+
+/* ================= HOST ================= */
+const H = {phase:'lobby', raceId:newId(), results:[], players:new Map(), colorIdx:0, timer:null, sendTimer:null};
+function hostSnapshot(){
+  return {phase:H.phase, raceId:H.raceId, results:H.results.slice(0,20),
+    players:[...H.players.values()].map(p => ({id:p.id, name:p.name, dist:p.dist, c:p.c, on:!!p.conn}))};
+}
+function hostBroadcast(){
+  state = hostSnapshot(); render();
+  if (H.sendTimer) return;
+  H.sendTimer = setTimeout(() => {
+    H.sendTimer = null;
+    const msg = {t:'state', s:hostSnapshot()};
+    for (const p of H.players.values()) if (p.conn && p.conn.open) { try { p.conn.send(msg); } catch(e){} }
+  }, 60);
+}
+function startHost(){
+  mode = 'host'; code = newCode();
+  $('#homeErr').textContent = 'Opening the race…';
+  peer = new Peer(PREFIX + code);
+  peer.on('open', () => {
+    $('#home').classList.remove('show'); $('#homeErr').textContent = '';
+    const link = location.origin + location.pathname + '?race=' + code;
+    $('#codeShow').textContent = code; $('#linkShow').textContent = link.replace(/^https?:\/\//,'');
+    $('#qr').textContent = '';
+    try { new QRCode($('#qr'), {text:link, width:360, height:360, correctLevel:QRCode.CorrectLevel.M}); } catch(e){}
+    $('#joinPanel').classList.add('show');
+    hostBroadcast();
+  });
+  peer.on('connection', conn => {
+    conn.on('data', d => hostOnData(conn, d));
+    conn.on('close', () => hostOnClose(conn));
+    conn.on('error', () => hostOnClose(conn));
+  });
+  peer.on('error', err => {
+    if (err && err.type === 'unavailable-id'){ try{peer.destroy();}catch(e){} startHost(); return; }
+    if (err && (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error')) $('#status').textContent = 'Connection problem — check the internet';
+  });
+  peer.on('disconnected', () => { try { peer.reconnect(); } catch(e){} });
+}
+function hostOnData(conn, d){
+  if (!d || typeof d !== 'object') return;
+  if (d.t === 'join'){
+    const id = String(d.id || '').slice(0,40), name = clean(d.name);
+    if (!id || !name) return;
+    let p = H.players.get(id);
+    if (!p){ p = {id, name, dist:0, c:COLORS[H.colorIdx++ % COLORS.length], raceId:H.raceId}; H.players.set(id, p); }
+    if (p.conn && p.conn !== conn) { try { p.conn.close(); } catch(e){} }
+    p.conn = conn; p.name = name; conn._pid = id;
+    hostBroadcast();
+  } else if (d.t === 'tap'){
+    const p = H.players.get(conn._pid);
+    if (!p || H.phase !== 'racing' || p.dist >= TRACK) return;
+    p.dist = Math.min(TRACK, p.dist + STEP);
+    if (p.dist >= TRACK && !H.results.some(r => r.id === p.id)) H.results.push({id:p.id, name:p.name});
+    const racers = [...H.players.values()].filter(x => x.conn || x.dist > 0);
+    if (H.results.length >= 3 || (racers.length && H.results.length >= racers.length)) H.phase = 'finished';
+    hostBroadcast();
+  } else if (d.t === 'leave'){
+    H.players.delete(conn._pid); hostBroadcast();
+  }
+}
+function hostOnClose(conn){
+  const p = H.players.get(conn._pid);
+  if (!p || p.conn !== conn) return;
+  p.conn = null;
+  if (H.phase === 'lobby') H.players.delete(p.id);
+  hostBroadcast();
+}
+function hostMain(){
+  if (H.phase === 'finished'){
+    H.phase = 'lobby'; H.raceId = newId(); H.results = [];
+    for (const [id,p] of H.players){ if (!p.conn) H.players.delete(id); else p.dist = 0; }
+    podiumDismissedFor = null; hostBroadcast(); return;
+  }
+  if (H.phase !== 'lobby' || !H.players.size) return;
+  H.phase = 'countdown'; H.raceId = newId(); H.results = [];
+  for (const p of H.players.values()) p.dist = 0;
+  hostBroadcast();
+  clearTimeout(H.timer);
+  H.timer = setTimeout(() => { if (H.phase === 'countdown'){ H.phase = 'racing'; hostBroadcast(); } }, 3000);
+}
+function hostEnd(){ if (H.phase === 'racing'){ H.phase = 'finished'; hostBroadcast(); } }
+
+/* ================= PLAYER ================= */
+let retry = 0, joining = false;
+function startPlayer(){
+  const c = $('#codeIn').value.trim().toUpperCase(), n = clean($('#nameIn').value);
+  if (c.length !== 5){ $('#homeErr').textContent = 'Enter the 5-letter race code from the big screen.'; $('#codeIn').focus(); return; }
+  if (!n){ $('#homeErr').textContent = 'Enter a name for your horse.'; $('#nameIn').focus(); return; }
+  code = c; myName = n; joining = true;
+  $('#homeErr').textContent = 'Joining…'; $('#joinBtn').disabled = true;
+  if (!peer || peer.destroyed){
+    peer = new Peer();
+    peer.on('open', connectToHost);
+    peer.on('error', err => {
+      if (err && err.type === 'peer-unavailable'){
+        if (mode === 'player'){ scheduleReconnect(); return; }
+        $('#homeErr').textContent = 'No race found with code ' + code + '. Check the code on the big screen.';
+        $('#joinBtn').disabled = false; joining = false;
+      } else if (mode !== 'player'){
+        $('#homeErr').textContent = 'Couldn’t connect. Check your internet and try again.'; $('#joinBtn').disabled = false; joining = false;
+      } else scheduleReconnect();
+    });
+    peer.on('disconnected', () => { try { peer.reconnect(); } catch(e){} });
+  } else connectToHost();
+}
+function connectToHost(){
+  const conn = peer.connect(PREFIX + code, {reliable:true});
+  conn.on('open', () => {
+    hostConn = conn; retry = 0;
+    conn.send({t:'join', id:myId, name:myName});
+    if (mode !== 'player'){ mode = 'player'; $('#home').classList.remove('show'); $('#homeErr').textContent = ''; $('#joinBtn').disabled = false; }
+    render();
+  });
+  conn.on('data', d => { if (d && d.t === 'state' && d.s){ state = d.s; render(); } });
+  conn.on('close', () => { if (hostConn === conn){ hostConn = null; render(); scheduleReconnect(); } });
+}
+function scheduleReconnect(){
+  if (mode !== 'player' || hostConn) return;
+  const wait = Math.min(5000, 800 * (++retry));
+  setTimeout(() => { if (mode === 'player' && !hostConn && peer && !peer.destroyed) connectToHost(); }, wait);
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden && mode === 'player' && !hostConn) { retry = 0; connectToHost(); } });
+function tap(){
+  if (!hostConn || !state || state.phase !== 'racing') return;
+  const me = state.players.find(p => p.id === myId);
+  if (me && me.dist >= TRACK) return;
+  try { hostConn.send({t:'tap'}); } catch(e){}
+  try { navigator.vibrate && navigator.vibrate(6); } catch(e){}
+}
+
+/* ================= RENDER ================= */
+const track = $('#track');
+const marks = document.createElement('div'); marks.className = 'marks';
+for (let m = 100; m < TRACK; m += 100){
+  const d = document.createElement('div'); d.className = 'mark';
+  d.style.left = `calc((100% - 10px - var(--rw)) * ${m/TRACK} + var(--rw))`;
+  const b = document.createElement('b'); b.textContent = m + ' m'; d.appendChild(b); marks.appendChild(d);
+}
+const fin = document.createElement('div'); fin.className = 'finish'; marks.appendChild(fin);
+track.appendChild(marks);
+const lanesBox = document.createElement('div'); track.appendChild(lanesBox);
+const laneEls = new Map();
+const emptyEl = document.createElement('div'); emptyEl.className = 'empty';
+emptyEl.innerHTML = 'No horses at the gate yet.<small>Scan the code or open the link on a phone to join.</small>';
+
+function renderTrack(){
+  const ps = state ? state.players : [], results = state ? state.results : [];
+  const racing = state && state.phase === 'racing', seen = new Set();
+  if (!ps.length){ if (!emptyEl.parentNode) lanesBox.appendChild(emptyEl); } else if (emptyEl.parentNode) emptyEl.remove();
+  ps.forEach((p, i) => {
+    seen.add(p.id);
+    let el = laneEls.get(p.id);
+    if (!el){
+      el = document.createElement('div'); el.className = 'lane';
+      el.innerHTML = '<div class="runner"><div class="bubble"></div><div class="horse" aria-hidden="true">🏇</div><span class="place"></span></div>';
+      el.runner = el.firstChild; el.bubble = el.runner.children[0]; el.place = el.runner.children[2];
+      laneEls.set(p.id, el);
+    }
+    if (lanesBox.children[i] !== el) lanesBox.insertBefore(el, lanesBox.children[i] || null);
+    el.runner.style.setProperty('--c', p.c);
+    const name = clean(p.name);
+    if (el.bubble.textContent !== name) el.bubble.textContent = name;
+    const d = Math.max(0, Math.min(TRACK, +p.dist || 0));
+    el.runner.style.setProperty('--p', (d / TRACK).toFixed(4));
+    el.runner.classList.toggle('me', mode === 'player' && p.id === myId);
+    el.runner.classList.toggle('off', !p.on);
+    el.runner.classList.toggle('go', !!racing && d > 0 && d < TRACK);
+    const idx = results.findIndex(r => r.id === p.id);
+    el.place.textContent = idx >= 0 && idx < 3 ? ORD[idx] : '';
+    el.place.classList.toggle('show', idx >= 0 && idx < 3);
+  });
+  for (const [k, el] of laneEls) if (!seen.has(k)){ el.remove(); laneEls.delete(k); }
+}
+function statusText(){
+  if (mode === 'player' && !hostConn) return 'Reconnecting…';
+  if (!state) return '';
+  const n = state.players.length;
+  return {lobby:`${n} ${n === 1 ? 'horse' : 'horses'} at the gate`, countdown:'Get ready…', racing:'And they’re off!', finished:'Race over'}[state.phase] || '';
+}
+const controls = $('#controls');
+let builtFor = null, tapBtn, tapSub, meterI;
+function renderControls(){
+  if (mode === 'home'){ controls.style.display = 'none'; return; }
+  controls.style.display = '';
+  if (mode === 'player'){
+    if (builtFor !== 'player'){
+      controls.innerHTML = '<div class="meter"><i></i></div><button class="tap" id="tap"><span class="slab">Gallop!</span><span class="sub"></span></button><div class="row" style="margin-top:8px"><span class="hostInfo" id="meName"></span></div>';
+      tapBtn = $('#tap'); tapSub = tapBtn.querySelector('.sub'); meterI = controls.querySelector('.meter i');
+      const press = () => { tapBtn.classList.add('pressed'); setTimeout(() => tapBtn.classList.remove('pressed'), 70); tap(); };
+      tapBtn.addEventListener('pointerdown', e => { e.preventDefault(); press(); });
+      tapBtn.addEventListener('keydown', e => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat){ e.preventDefault(); press(); } });
+      tapBtn.addEventListener('click', e => e.preventDefault());
+      tapBtn.addEventListener('contextmenu', e => e.preventDefault());
+      builtFor = 'player';
+    }
+    $('#meName').textContent = 'Riding as ' + myName;
+    const me = state && state.players.find(p => p.id === myId);
+    const dist = me ? me.dist : 0, phase = state ? state.phase : null;
+    const res = state ? state.results : [], place = res.findIndex(r => r.id === myId);
+    tapBtn.setAttribute('aria-disabled', (hostConn && phase === 'racing' && dist < TRACK) ? 'false' : 'true');
+    let sub;
+    if (!hostConn) sub = 'Reconnecting…';
+    else if (!phase || phase === 'lobby') sub = 'Waiting for the host to start';
+    else if (phase === 'countdown') sub = 'Get ready…';
+    else if (dist >= TRACK) sub = place >= 0 && place < 3 ? `Finished ${ORD[place]}!` : 'Finished!';
+    else if (phase === 'finished') sub = `${dist} m — race over`;
+    else sub = `${dist} m of ${TRACK} m`;
+    tapSub.textContent = sub; meterI.style.width = (dist / TRACK * 100) + '%';
+    return;
+  }
+  if (builtFor !== 'host'){
+    controls.innerHTML = '<div class="row"><button class="btn" id="hostMain"></button><button class="btn alt" id="hostEnd">End race</button><span class="hostInfo" id="hostInfo"></span><div class="podiumMini" id="mini"></div></div>';
+    $('#hostMain').addEventListener('click', hostMain);
+    $('#hostEnd').addEventListener('click', hostEnd);
+    builtFor = 'host';
+  }
+  const phase = H.phase, n = H.players.size;
+  $('#hostMain').textContent = phase === 'finished' ? 'New race' : phase === 'lobby' ? 'Start race' : 'Racing…';
+  $('#hostMain').disabled = phase === 'countdown' || phase === 'racing' || (phase === 'lobby' && !n);
+  $('#hostEnd').style.display = phase === 'racing' ? '' : 'none';
+  $('#hostInfo').textContent = `${n} ${n === 1 ? 'rider' : 'riders'} joined`;
+  const mini = $('#mini'); mini.textContent = '';
+  H.results.slice(0,3).forEach((r,i) => { const s = document.createElement('span'); s.textContent = `${ORD[i]} ${r.name}`; mini.appendChild(s); });
+}
+function onPhase(){
+  const phase = state ? state.phase : null, race = state ? state.raceId : null;
+  if (phase === lastPhase && race === lastRace) return;
+  const prev = lastPhase; lastPhase = phase; lastRace = race;
+  const cnt = $('#count'), num = $('#countNum');
+  countTimers.forEach(clearTimeout); countTimers = [];
+  if (phase === 'countdown'){
+    cnt.classList.add('show'); num.textContent = '3';
+    countTimers.push(setTimeout(() => num.textContent = '2', 1000), setTimeout(() => num.textContent = '1', 2000));
+  } else if (phase === 'racing' && prev === 'countdown'){
+    cnt.classList.add('show'); num.textContent = 'Go!';
+    countTimers.push(setTimeout(() => cnt.classList.remove('show'), 700));
+  } else cnt.classList.remove('show');
+}
+function renderPodium(){
+  const pod = $('#podium');
+  const show = mode !== 'home' && state && state.phase === 'finished' && podiumDismissedFor !== state.raceId;
+  pod.classList.toggle('show', !!show);
+  if (!show) return;
+  const res = state.results.slice(0,3), steps = $('#podiumSteps'), medals = ['🥇','🥈','🥉'];
+  steps.textContent = '';
+  [1,0,2].forEach(i => {
+    const r = res[i], s = document.createElement('div'); s.className = 'step p' + (i+1);
+    if (!r) s.style.visibility = 'hidden';
+    const w = document.createElement('div'); w.className = 'who'; w.textContent = r ? clean(r.name) : '';
+    const b = document.createElement('div'); b.className = 'block'; b.innerHTML = `<span class="medal">${medals[i]}</span>`;
+    s.append(w, b); steps.appendChild(s);
+  });
+  $('#podiumNote').textContent = !res.length ? 'Nobody crossed the line this time.' : mode === 'host' ? '' : 'Waiting for the host to start the next race.';
+  const act = $('#podiumActions'); act.textContent = '';
+  const b = document.createElement('button');
+  if (mode === 'host'){ b.className = 'btn'; b.textContent = 'New race'; b.onclick = hostMain; }
+  else { b.className = 'btn alt'; b.textContent = 'Close'; const rid = state.raceId; b.onclick = () => { podiumDismissedFor = rid; renderPodium(); }; }
+  act.appendChild(b);
+}
+function render(){
+  onPhase();
+  $('#status').textContent = statusText();
+  renderTrack(); renderControls(); renderPodium();
+}
+
+/* ================= BOOT ================= */
+const params = new URLSearchParams(location.search);
+const pre = (params.get('race') || '').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,5);
+if (pre){ $('#codeIn').value = pre; $('#codeIn').style.display = 'none'; $('#hostForm').style.display = 'none'; }
+if (typeof Peer === 'undefined'){
+  $('#homeErr').textContent = 'The race couldn’t load. Check the internet connection and reload.';
+  $('#joinBtn').disabled = true; $('#hostBtn').disabled = true;
+}
+$('#joinBtn').addEventListener('click', startPlayer);
+$('#nameIn').addEventListener('keydown', e => { if (e.key === 'Enter') startPlayer(); });
+$('#hostBtn').addEventListener('click', () => { $('#hostBtn').disabled = true; startHost(); });
+window.addEventListener('beforeunload', e => { if (mode === 'host' && H.players.size){ e.preventDefault(); e.returnValue = ''; } });
+render();
+})();
+</script>
+</body>
+</html>
